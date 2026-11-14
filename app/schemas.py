@@ -5,9 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 NombreProducto = Annotated[str, Field(min_length=1, max_length=120)]
-PrecioProducto = Annotated[
-    Decimal, Field(gt=0, max_digits=10, decimal_places=2)
-]
+PrecioProducto = Annotated[Decimal, Field(gt=0, max_digits=10, decimal_places=2)]
 
 
 class ProductoBase(BaseModel):
