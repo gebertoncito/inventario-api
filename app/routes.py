@@ -68,6 +68,19 @@ def actualizar_producto_parcial(
     return producto_existente
 
 
+@router.delete(
+    "/{producto_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def eliminar_producto(
+    producto_id: int,
+    db: Session = Depends(get_db),
+) -> None:
+    producto_existente = _obtener_producto_activo(producto_id, db)
+    producto_existente.activo = False
+    db.commit()
+
+
 def _obtener_producto_activo(producto_id: int, db: Session) -> Producto:
     consulta = select(Producto).where(
         Producto.id == producto_id,
