@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Producto
-from app.schemas import ProductoCreate, ProductoOut
+from app.schemas import ProductoCreate, ProductoOut, ProductoUpdate
 
 
 router = APIRouter(prefix="/productos", tags=["productos"])
@@ -37,6 +37,24 @@ def obtener_producto(
     producto_id: int,
     db: Session = Depends(get_db),
 ) -> Producto:
+    return _obtener_producto_activo(producto_id, db)
+
+
+@router.put("/{producto_id}", response_model=ProductoOut)
+def reemplazar_producto(
+    producto_id: int,
+    producto_actualizado: ProductoCreate,
+    db: Session = Depends(get_db),
+) -> Producto:
+    producto_existente = _obtener_producto_activo(producto_id, db)
+    for campo, valor in producto_actualizado.model_dump().items():
+        setattr(producto_existente, campo, valor)
+    db.commit()
+    db.refresh(producto_existente)
+    return producto_existente
+
+
+def _obtener_producto_activo(producto_id: int, db: Session) -> Producto:
     consulta = select(Producto).where(
         Producto.id == producto_id,
         Producto.activo.is_(True),
