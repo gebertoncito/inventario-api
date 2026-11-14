@@ -64,6 +64,8 @@ en <http://127.0.0.1:8000/docs> y el chequeo de estado en
 - `PUT /productos/{id}`: reemplaza todos los campos de un producto activo.
 - `PATCH /productos/{id}`: actualiza los campos enviados de un producto activo.
 - `DELETE /productos/{id}`: realiza el borrado lógico de un producto activo.
+- `POST /productos/{id}/movimientos`: registra una entrada o salida de stock.
+- `GET /productos/{id}/movimientos`: consulta el historial de movimientos.
 - `GET /health`: informa el estado de la API.
 
 El nombre es obligatorio y no puede estar vacío; el precio debe ser mayor que
