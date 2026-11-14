@@ -3,8 +3,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Producto
-from app.schemas import ProductoCreate, ProductoOut, ProductoUpdate
+from app.models import MovimientoInventario, Producto
+from app.schemas import (
+    MovimientoCreate,
+    MovimientoOut,
+    ProductoCreate,
+    ProductoOut,
+    ProductoUpdate,
+)
 
 
 router = APIRouter(prefix="/productos", tags=["productos"])
@@ -79,6 +85,39 @@ def eliminar_producto(
     producto_existente = _obtener_producto_activo(producto_id, db)
     producto_existente.activo = False
     db.commit()
+
+
+@router.post(
+    "/{producto_id}/movimientos",
+    response_model=MovimientoOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def registrar_movimiento(
+    producto_id: int,
+    movimiento: MovimientoCreate,
+    db: Session = Depends(get_db),
+) -> MovimientoInventario:
+    producto = _obtener_producto_activo(producto_id, db)
+    if movimiento.tipo == "salida" and movimiento.cantidad > producto.stock:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Stock insuficiente",
+        )
+
+    if movimiento.tipo == "entrada":
+        producto.stock += movimiento.cantidad
+    else:
+        producto.stock -= movimiento.cantidad
+
+    nuevo_movimiento = MovimientoInventario(
+        producto_id=producto_id,
+        **movimiento.model_dump(),
+    )
+    db.add(nuevo_movimiento)
+    db.commit()
+    db.refresh(nuevo_movimiento)
+    return nuevo_movimiento
 
 
 def _obtener_producto_activo(producto_id: int, db: Session) -> Producto:

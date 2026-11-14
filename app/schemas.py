@@ -1,5 +1,6 @@
+from datetime import datetime
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -57,3 +58,28 @@ class ProductoOut(BaseModel):
     precio: Decimal
     stock: int
     activo: bool
+
+
+class MovimientoCreate(BaseModel):
+    tipo: Literal["entrada", "salida"]
+    cantidad: Annotated[int, Field(gt=0)]
+    nota: Annotated[str | None, Field(max_length=200)] = None
+
+    @field_validator("nota", mode="before")
+    @classmethod
+    def limpiar_nota(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        nota = value.strip()
+        return nota or None
+
+
+class MovimientoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    producto_id: int
+    tipo: Literal["entrada", "salida"]
+    cantidad: int
+    fecha: datetime
+    nota: str | None
