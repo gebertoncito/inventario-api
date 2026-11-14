@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -97,25 +97,48 @@ def registrar_movimiento(
     movimiento: MovimientoCreate,
     db: Session = Depends(get_db),
 ) -> MovimientoInventario:
-    producto = _obtener_producto_activo(producto_id, db)
-    if movimiento.tipo == "salida" and movimiento.cantidad > producto.stock:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Stock insuficiente",
+    try:
+        condiciones = [
+            Producto.id == producto_id,
+            Producto.activo.is_(True),
+        ]
+        if movimiento.tipo == "salida":
+            condiciones.append(Producto.stock >= movimiento.cantidad)
+            nuevo_stock = Producto.stock - movimiento.cantidad
+        else:
+            nuevo_stock = Producto.stock + movimiento.cantidad
+
+        resultado = db.execute(
+            update(Producto).where(*condiciones).values(stock=nuevo_stock)
         )
+        if resultado.rowcount == 0:
+            if movimiento.tipo == "salida":
+                producto_activo = db.scalar(
+                    select(Producto.id).where(
+                        Producto.id == producto_id,
+                        Producto.activo.is_(True),
+                    )
+                )
+                if producto_activo is not None:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Stock insuficiente",
+                    )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Producto no encontrado",
+            )
 
-    if movimiento.tipo == "entrada":
-        producto.stock += movimiento.cantidad
-    else:
-        producto.stock -= movimiento.cantidad
+        nuevo_movimiento = MovimientoInventario(
+            producto_id=producto_id,
+            **movimiento.model_dump(),
+        )
+        db.add(nuevo_movimiento)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
-    nuevo_movimiento = MovimientoInventario(
-        producto_id=producto_id,
-        **movimiento.model_dump(),
-    )
-    db.add(nuevo_movimiento)
-    db.commit()
     db.refresh(nuevo_movimiento)
     return nuevo_movimiento
 
