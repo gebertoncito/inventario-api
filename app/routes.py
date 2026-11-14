@@ -54,6 +54,20 @@ def reemplazar_producto(
     return producto_existente
 
 
+@router.patch("/{producto_id}", response_model=ProductoOut)
+def actualizar_producto_parcial(
+    producto_id: int,
+    producto_actualizado: ProductoUpdate,
+    db: Session = Depends(get_db),
+) -> Producto:
+    producto_existente = _obtener_producto_activo(producto_id, db)
+    for campo, valor in producto_actualizado.model_dump(exclude_unset=True).items():
+        setattr(producto_existente, campo, valor)
+    db.commit()
+    db.refresh(producto_existente)
+    return producto_existente
+
+
 def _obtener_producto_activo(producto_id: int, db: Session) -> Producto:
     consulta = select(Producto).where(
         Producto.id == producto_id,
