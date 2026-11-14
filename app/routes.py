@@ -120,6 +120,26 @@ def registrar_movimiento(
     return nuevo_movimiento
 
 
+@router.get(
+    "/{producto_id}/movimientos",
+    response_model=list[MovimientoOut],
+)
+def listar_movimientos(
+    producto_id: int,
+    db: Session = Depends(get_db),
+) -> list[MovimientoInventario]:
+    _obtener_producto_activo(producto_id, db)
+    consulta = (
+        select(MovimientoInventario)
+        .where(MovimientoInventario.producto_id == producto_id)
+        .order_by(
+            MovimientoInventario.fecha.desc(),
+            MovimientoInventario.id.desc(),
+        )
+    )
+    return list(db.scalars(consulta).all())
+
+
 def _obtener_producto_activo(producto_id: int, db: Session) -> Producto:
     consulta = select(Producto).where(
         Producto.id == producto_id,
