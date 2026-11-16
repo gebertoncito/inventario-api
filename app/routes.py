@@ -9,6 +9,7 @@ from app.schemas import (
     MovimientoOut,
     ProductoCreate,
     ProductoOut,
+    ProductoReemplazo,
     ProductoUpdate,
 )
 
@@ -49,7 +50,7 @@ def obtener_producto(
 @router.put("/{producto_id}", response_model=ProductoOut)
 def reemplazar_producto(
     producto_id: int,
-    producto_actualizado: ProductoCreate,
+    producto_actualizado: ProductoReemplazo,
     db: Session = Depends(get_db),
 ) -> Producto:
     producto_existente = _obtener_producto_activo(producto_id, db)

@@ -28,9 +28,10 @@ class ProductoCreate(ProductoBase):
 
 
 class ProductoUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     nombre: NombreProducto | None = None
     precio: PrecioProducto | None = None
-    stock: Annotated[int, Field(ge=0)] | None = None
 
     @field_validator("nombre")
     @classmethod
@@ -48,6 +49,21 @@ class ProductoUpdate(BaseModel):
             if getattr(self, campo) is None:
                 raise ValueError("El campo no puede ser nulo")
         return self
+
+
+class ProductoReemplazo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: NombreProducto
+    precio: PrecioProducto
+
+    @field_validator("nombre")
+    @classmethod
+    def validar_nombre_no_vacio(cls, value: str) -> str:
+        nombre = value.strip()
+        if not nombre:
+            raise ValueError("El nombre no puede estar vacío")
+        return nombre
 
 
 class ProductoOut(BaseModel):
