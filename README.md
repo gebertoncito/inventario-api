@@ -29,6 +29,11 @@ En Windows, si PowerShell no permite activar el entorno, usa:
 Copia `.env.example` a `.env` y ajusta `DATABASE_URL` si hace falta. La
 aplicación lee la variable de entorno `DATABASE_URL`; SQLite se usa por defecto.
 
+## Configuración
+
+`CORS_ORIGINS` define los orígenes permitidos para las solicitudes del navegador,
+separados por comas. Si no se configura, se permite `http://localhost:5173`.
+
 ## Usar PostgreSQL
 
 Inicia la base de datos:

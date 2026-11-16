@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Configuración CORS para permitir llamadas del frontend a la API.
+
 ## 0.2.0 - 2026-11-16
 
 ### Added
