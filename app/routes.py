@@ -27,8 +27,22 @@ def crear_producto(
     db: Session = Depends(get_db),
 ) -> Producto:
     nuevo_producto = Producto(**producto.model_dump())
-    db.add(nuevo_producto)
-    db.commit()
+    try:
+        db.add(nuevo_producto)
+        db.flush()
+        if nuevo_producto.stock > 0:
+            db.add(
+                MovimientoInventario(
+                    producto_id=nuevo_producto.id,
+                    tipo="entrada",
+                    cantidad=nuevo_producto.stock,
+                    nota="Stock inicial",
+                )
+            )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(nuevo_producto)
     return nuevo_producto
 
