@@ -1,10 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Producto
-from app.schemas import ProductoCreate, ProductoOut, ProductoUpdate
+from app.models import MovimientoInventario, Producto
+from app.schemas import (
+    MovimientoCreate,
+    MovimientoOut,
+    ProductoCreate,
+    ProductoOut,
+    ProductoReemplazo,
+    ProductoUpdate,
+)
 
 
 router = APIRouter(prefix="/productos", tags=["productos"])
@@ -20,8 +27,22 @@ def crear_producto(
     db: Session = Depends(get_db),
 ) -> Producto:
     nuevo_producto = Producto(**producto.model_dump())
-    db.add(nuevo_producto)
-    db.commit()
+    try:
+        db.add(nuevo_producto)
+        db.flush()
+        if nuevo_producto.stock > 0:
+            db.add(
+                MovimientoInventario(
+                    producto_id=nuevo_producto.id,
+                    tipo="entrada",
+                    cantidad=nuevo_producto.stock,
+                    nota="Stock inicial",
+                )
+            )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(nuevo_producto)
     return nuevo_producto
 
@@ -43,7 +64,7 @@ def obtener_producto(
 @router.put("/{producto_id}", response_model=ProductoOut)
 def reemplazar_producto(
     producto_id: int,
-    producto_actualizado: ProductoCreate,
+    producto_actualizado: ProductoReemplazo,
     db: Session = Depends(get_db),
 ) -> Producto:
     producto_existente = _obtener_producto_activo(producto_id, db)
@@ -79,6 +100,82 @@ def eliminar_producto(
     producto_existente = _obtener_producto_activo(producto_id, db)
     producto_existente.activo = False
     db.commit()
+
+
+@router.post(
+    "/{producto_id}/movimientos",
+    response_model=MovimientoOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def registrar_movimiento(
+    producto_id: int,
+    movimiento: MovimientoCreate,
+    db: Session = Depends(get_db),
+) -> MovimientoInventario:
+    try:
+        condiciones = [
+            Producto.id == producto_id,
+            Producto.activo.is_(True),
+        ]
+        if movimiento.tipo == "salida":
+            condiciones.append(Producto.stock >= movimiento.cantidad)
+            nuevo_stock = Producto.stock - movimiento.cantidad
+        else:
+            nuevo_stock = Producto.stock + movimiento.cantidad
+
+        resultado = db.execute(
+            update(Producto).where(*condiciones).values(stock=nuevo_stock)
+        )
+        if resultado.rowcount == 0:
+            if movimiento.tipo == "salida":
+                producto_activo = db.scalar(
+                    select(Producto.id).where(
+                        Producto.id == producto_id,
+                        Producto.activo.is_(True),
+                    )
+                )
+                if producto_activo is not None:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Stock insuficiente",
+                    )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Producto no encontrado",
+            )
+
+        nuevo_movimiento = MovimientoInventario(
+            producto_id=producto_id,
+            **movimiento.model_dump(),
+        )
+        db.add(nuevo_movimiento)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    db.refresh(nuevo_movimiento)
+    return nuevo_movimiento
+
+
+@router.get(
+    "/{producto_id}/movimientos",
+    response_model=list[MovimientoOut],
+)
+def listar_movimientos(
+    producto_id: int,
+    db: Session = Depends(get_db),
+) -> list[MovimientoInventario]:
+    _obtener_producto_activo(producto_id, db)
+    consulta = (
+        select(MovimientoInventario)
+        .where(MovimientoInventario.producto_id == producto_id)
+        .order_by(
+            MovimientoInventario.fecha.desc(),
+            MovimientoInventario.id.desc(),
+        )
+    )
+    return list(db.scalars(consulta).all())
 
 
 def _obtener_producto_activo(producto_id: int, db: Session) -> Producto:
