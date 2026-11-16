@@ -17,7 +17,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="Inventario API",
     description="API REST para gestionar el inventario de una pulpería o tienda.",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
