@@ -61,12 +61,16 @@ en <http://127.0.0.1:8000/docs> y el chequeo de estado en
 - `POST /productos`: crea un producto.
 - `GET /productos`: lista los productos activos.
 - `GET /productos/{id}`: obtiene un producto activo.
-- `PUT /productos/{id}`: reemplaza todos los campos de un producto activo.
-- `PATCH /productos/{id}`: actualiza los campos enviados de un producto activo.
+- `PUT /productos/{id}`: reemplaza nombre y precio de un producto activo; no acepta stock.
+- `PATCH /productos/{id}`: actualiza nombre o precio; no acepta stock.
 - `DELETE /productos/{id}`: realiza el borrado lógico de un producto activo.
 - `POST /productos/{id}/movimientos`: registra una entrada o salida de stock.
 - `GET /productos/{id}/movimientos`: consulta el historial de movimientos.
 - `GET /health`: informa el estado de la API.
+
+Al crear un producto, `POST /productos` acepta un stock inicial; si es mayor que
+cero, se registra como un movimiento de entrada. El stock se modifica mediante
+`POST /productos/{id}/movimientos`, no mediante PUT ni PATCH.
 
 El nombre es obligatorio y no puede estar vacío; el precio debe ser mayor que
 cero y admitir hasta 10 dígitos con 2 decimales; el stock debe ser un entero no

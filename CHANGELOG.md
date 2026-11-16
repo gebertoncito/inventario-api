@@ -10,6 +10,11 @@
 - Registro de entradas y salidas de stock con historial por producto.
 - Validación de stock y actualización atómica al registrar movimientos.
 
+### Changed
+
+- PUT y PATCH ya no aceptan stock; el stock se modifica solo con movimientos.
+- POST /productos con stock inicial registra un movimiento de entrada.
+
 ## 0.1.0 - 2026-11-13
 
 - Estructura inicial de Inventario API con FastAPI, SQLAlchemy y Pydantic.
