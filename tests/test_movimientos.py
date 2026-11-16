@@ -13,6 +13,43 @@ from app.schemas import MovimientoCreate
 from app import routes
 
 
+def test_producto_con_stock_inicial_registra_movimiento_entrada(
+    client: TestClient,
+) -> None:
+    producto = client.post(
+        "/productos",
+        json={"nombre": "Arroz", "precio": "25.50", "stock": 10},
+    )
+    producto_id = producto.json()["id"]
+
+    historial = client.get(f"/productos/{producto_id}/movimientos")
+
+    assert producto.status_code == 201
+    assert producto.json()["stock"] == 10
+    assert historial.status_code == 200
+    assert len(historial.json()) == 1
+    assert historial.json()[0]["tipo"] == "entrada"
+    assert historial.json()[0]["cantidad"] == 10
+    assert historial.json()[0]["nota"] == "Stock inicial"
+
+
+def test_producto_con_stock_inicial_cero_no_registra_movimiento(
+    client: TestClient,
+) -> None:
+    producto = client.post(
+        "/productos",
+        json={"nombre": "Arroz", "precio": "25.50", "stock": 0},
+    )
+    producto_id = producto.json()["id"]
+
+    historial = client.get(f"/productos/{producto_id}/movimientos")
+
+    assert producto.status_code == 201
+    assert producto.json()["stock"] == 0
+    assert historial.status_code == 200
+    assert historial.json() == []
+
+
 def crear_producto(client: TestClient, stock: int = 10) -> int:
     respuesta = client.post(
         "/productos",
@@ -144,7 +181,7 @@ def test_historial_ordenado_por_fecha_e_id_descendentes(
     client: TestClient,
 ) -> None:
     producto_id = crear_producto(client)
-    movimientos = []
+    movimientos = client.get(f"/productos/{producto_id}/movimientos").json()
     for tipo, cantidad in (("entrada", 1), ("salida", 1), ("entrada", 2)):
         respuesta = client.post(
             f"/productos/{producto_id}/movimientos",
@@ -195,6 +232,7 @@ def test_nota_se_recorta_y_nota_vacia_se_guarda_como_nula(
 
 def test_salida_insuficiente_no_registra_movimiento(client: TestClient) -> None:
     producto_id = crear_producto(client, stock=2)
+    movimientos_antes = client.get(f"/productos/{producto_id}/movimientos").json()
 
     respuesta = client.post(
         f"/productos/{producto_id}/movimientos",
@@ -202,7 +240,9 @@ def test_salida_insuficiente_no_registra_movimiento(client: TestClient) -> None:
     )
 
     assert respuesta.status_code == 409
-    assert client.get(f"/productos/{producto_id}/movimientos").json() == []
+    assert (
+        client.get(f"/productos/{producto_id}/movimientos").json() == movimientos_antes
+    )
 
 
 def test_salidas_concurrentes_no_sobrevenden(tmp_path) -> None:

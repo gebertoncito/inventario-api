@@ -83,7 +83,28 @@ def test_producto_inexistente_devuelve_404(client: TestClient) -> None:
     assert respuesta.json() == {"detail": "Producto no encontrado"}
 
 
-def test_put_actualiza_producto_completo(client: TestClient) -> None:
+def test_put_actualiza_nombre_y_precio_sin_cambiar_stock(client: TestClient) -> None:
+    creado = client.post(
+        "/productos",
+        json={"nombre": "Arroz", "precio": "25.50", "stock": 10},
+    )
+
+    respuesta = client.put(
+        f"/productos/{creado.json()['id']}",
+        json={"nombre": "Frijoles", "precio": "30.00"},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {
+        "id": creado.json()["id"],
+        "nombre": "Frijoles",
+        "precio": "30.00",
+        "stock": 10,
+        "activo": True,
+    }
+
+
+def test_put_rechaza_stock(client: TestClient) -> None:
     creado = client.post(
         "/productos",
         json={"nombre": "Arroz", "precio": "25.50", "stock": 10},
@@ -94,20 +115,14 @@ def test_put_actualiza_producto_completo(client: TestClient) -> None:
         json={"nombre": "Frijoles", "precio": "30.00", "stock": 5},
     )
 
-    assert respuesta.status_code == 200
-    assert respuesta.json() == {
-        "id": creado.json()["id"],
-        "nombre": "Frijoles",
-        "precio": "30.00",
-        "stock": 5,
-        "activo": True,
-    }
+    assert respuesta.status_code == 422
+    assert client.get(f"/productos/{creado.json()['id']}").json()["stock"] == 10
 
 
 def test_put_producto_inexistente_devuelve_404(client: TestClient) -> None:
     respuesta = client.put(
         "/productos/999",
-        json={"nombre": "Frijoles", "precio": "30.00", "stock": 5},
+        json={"nombre": "Frijoles", "precio": "30.00"},
     )
 
     assert respuesta.status_code == 404
@@ -122,7 +137,7 @@ def test_put_rechaza_precio_negativo(client: TestClient) -> None:
 
     respuesta = client.put(
         f"/productos/{creado.json()['id']}",
-        json={"nombre": "Frijoles", "precio": "-1.00", "stock": 5},
+        json={"nombre": "Frijoles", "precio": "-1.00"},
     )
 
     assert respuesta.status_code == 422
@@ -136,7 +151,7 @@ def test_put_recorta_espacios_del_nombre(client: TestClient) -> None:
 
     respuesta = client.put(
         f"/productos/{creado.json()['id']}",
-        json={"nombre": "  Frijoles  ", "precio": "30.00", "stock": 5},
+        json={"nombre": "  Frijoles  ", "precio": "30.00"},
     )
 
     assert respuesta.status_code == 200
@@ -151,13 +166,13 @@ def test_put_rechaza_nombre_nulo(client: TestClient) -> None:
 
     respuesta = client.put(
         f"/productos/{creado.json()['id']}",
-        json={"nombre": None, "precio": "30.00", "stock": 5},
+        json={"nombre": None, "precio": "30.00"},
     )
 
     assert respuesta.status_code == 422
 
 
-def test_patch_actualiza_solo_stock(client: TestClient) -> None:
+def test_patch_rechaza_stock_sin_cambiarlo(client: TestClient) -> None:
     creado = client.post(
         "/productos",
         json={"nombre": "Arroz", "precio": "25.50", "stock": 10},
@@ -168,12 +183,29 @@ def test_patch_actualiza_solo_stock(client: TestClient) -> None:
         json={"stock": 5},
     )
 
+    assert respuesta.status_code == 422
+    assert client.get(f"/productos/{creado.json()['id']}").json()["stock"] == 10
+
+
+def test_patch_actualiza_nombre_y_precio_sin_cambiar_stock(
+    client: TestClient,
+) -> None:
+    creado = client.post(
+        "/productos",
+        json={"nombre": "Arroz", "precio": "25.50", "stock": 10},
+    )
+
+    respuesta = client.patch(
+        f"/productos/{creado.json()['id']}",
+        json={"nombre": "Frijoles", "precio": "30.00"},
+    )
+
     assert respuesta.status_code == 200
     assert respuesta.json() == {
         "id": creado.json()["id"],
-        "nombre": "Arroz",
-        "precio": "25.50",
-        "stock": 5,
+        "nombre": "Frijoles",
+        "precio": "30.00",
+        "stock": 10,
         "activo": True,
     }
 
